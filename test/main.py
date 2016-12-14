@@ -80,7 +80,7 @@ def get_regression(data):
     male_cent_sorted = np.sort(male_cent)
     female_cent_sorted = np.sort(female_cent)
     num_males, num_females = male_cent.shape[0], female_cent.shape[0]
-    CUTOFF_PART = 60
+    CUTOFF_PART = 4
     new_male_count = num_males//CUTOFF_PART
     new_female_count = num_females//CUTOFF_PART
     male_cent_sorted = male_cent_sorted[::-1]
@@ -91,11 +91,12 @@ def get_regression(data):
     ones = np.ones((new_female_count, 1))
     X = np.concatenate((zeros, ones))
     Y = np.concatenate((male_cent_sorted, female_cent_sorted))
-    max_centrality_val = max(Y)
+    max_centrality_val = np.amax(Y)
     Y = Y/max_centrality_val
     # TODO: why are we getting errors in sqrt?
-    res = linregress(X.T, Y.T)
-    return res
+    fit = linregress(X.T, Y.T)
+    #fit = np.polyfit(X.T, Y.T, deg=1)
+    return fit, X, Y
 
 def collect_filenames(folder):
     paths = os.listdir(folder)
@@ -112,7 +113,7 @@ def collect_filenames(folder):
 
 if __name__ == "__main__":
     SAVED = True
-    SMALL = False
+    SMALL = True
     GRAPH_PICKLE = "graph.pickle"
     FEAT_PICKLE = "feat.pickle"
     DATA_FILE = "data.pickle"
@@ -144,6 +145,11 @@ if __name__ == "__main__":
         pickle.dump(feat_names, open(FEAT_PICKLE, 'wb'))
         #pickle.dump(data, open(DATA_FILE, 'wb'))
 
+    print("Done loading data, finding centrality...")
     data = get_centrality()
-    regression = get_regression(data)
-    print(regression)
+    print("Done finding centrality, plotting...")
+    fit, X, Y= get_regression(data)
+    fig, ax = plt.subplots()
+    ax.plot(X, fit.slope * X + fit.intercept, color='red')
+    ax.scatter(X, Y)
+    fig.show()
