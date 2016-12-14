@@ -69,7 +69,7 @@ def get_centrality():
     female_idxes = [idx for idx in G if G.node[idx]['gender:2'] == 1]
     # TODO: try different things
     #centrality = nx.degree_centrality(G)
-    centrality = nx.in_degree_centrality(G)
+    centrality = nx.eigenvector_centrality(G)
     male_centrality = np.array([centrality[nodeID] for nodeID in centrality if nodeID in male_idxes])
     female_centrality = np.array([centrality[nodeID] for nodeID in centrality if nodeID in female_idxes])
     data = [male_centrality, female_centrality]
@@ -77,11 +77,22 @@ def get_centrality():
 
 def get_regression(data):
     male_cent, female_cent = data
+    male_cent_sorted = np.sort(male_cent)
+    female_cent_sorted = np.sort(female_cent)
     num_males, num_females = male_cent.shape[0], female_cent.shape[0]
-    zeros = np.zeros((num_males, 1))
-    ones = np.ones((num_females, 1))
+    CUTOFF_PART = 60
+    new_male_count = num_males//CUTOFF_PART
+    new_female_count = num_females//CUTOFF_PART
+    male_cent_sorted = male_cent_sorted[::-1]
+    female_cent_sorted = female_cent_sorted[::-1]
+    male_cent_sorted = male_cent_sorted[:new_male_count]
+    female_cent_sorted = female_cent_sorted[:new_female_count]
+    zeros = np.zeros((new_male_count, 1))
+    ones = np.ones((new_female_count, 1))
     X = np.concatenate((zeros, ones))
-    Y = np.concatenate((male_cent, female_cent))
+    Y = np.concatenate((male_cent_sorted, female_cent_sorted))
+    max_centrality_val = max(Y)
+    Y = Y/max_centrality_val
     # TODO: why are we getting errors in sqrt?
     res = linregress(X.T, Y.T)
     return res
@@ -101,15 +112,27 @@ def collect_filenames(folder):
 
 if __name__ == "__main__":
     SAVED = True
+    SMALL = False
     GRAPH_PICKLE = "graph.pickle"
     FEAT_PICKLE = "feat.pickle"
     DATA_FILE = "data.pickle"
 
-    if SAVED:
+    if SMALL:
+        #edge_files, feat_files = collect_filenames(DATA_FOLDER)
+        edge_files = [EDGE_FILE]
+        feat_files = [FEAT_FILE_FULL]
+        feat_names = organize_features(FEATNAMES_FILE_FULL)
+        for edge_file, feat_file in zip(edge_files, feat_files):
+            connect_edges(edge_file)
+            # TODO: make this better than a hardcode puhlease
+            assign_gender(feat_file, feat_names)
+
+    elif SAVED:
         G = pickle.load(open(GRAPH_PICKLE, "rb"))
         feat_names = pickle.load(open(FEAT_PICKLE, 'rb'))
         #data = pickle.load(open(DATA_FILE, 'rb'))
     else:
+        print("Not saved!!")
         edge_files, feat_files = collect_filenames(DATA_FOLDER)
         feat_names = organize_features(FEATNAMES_FILE_FULL)
         for edge_file, feat_file in zip(edge_files, feat_files):
