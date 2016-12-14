@@ -4,6 +4,8 @@ import networkx as nx
 import numpy as np
 import os
 import pprint
+import pickle
+import sys
 
 pp = pprint.PrettyPrinter(indent=4)
 G = nx.DiGraph()
@@ -56,12 +58,18 @@ def assign_gender(filepath, feat_names):
                 feat_name = feat_names[feat_idx]
                 if len(feat_names) >= len(node_data):
                     print(len(feat_names), len(node_data))
-                G.node[nodeID][feat_name] = node_data[feat_idx]
+                try:
+                    G.node[nodeID][feat_name] = node_data[feat_idx]
+                except:
+                    print(filepath)
+                    sys.exit(1)
 
 def get_centrality():
     male_idxes  = [idx for idx in G if G.node[idx]['gender:1'] == 1]
     female_idxes = [idx for idx in G if G.node[idx]['gender:2'] == 1]
-    centrality = nx.degree_centrality(G)
+    # TODO: try different things
+    #centrality = nx.degree_centrality(G)
+    centrality = nx.in_degree_centrality(G)
     male_centrality = np.array([centrality[nodeID] for nodeID in centrality if nodeID in male_idxes])
     female_centrality = np.array([centrality[nodeID] for nodeID in centrality if nodeID in female_idxes])
     data = [male_centrality, female_centrality]
@@ -92,12 +100,26 @@ def collect_filenames(folder):
     return edge_files, feat_files
 
 if __name__ == "__main__":
-    edge_files, feat_files = collect_filenames(DATA_FOLDER)
-    feat_names = organize_features(FEATNAMES_FILE_FULL)
-    for edge_file, feat_file in zip(edge_files, feat_files):
-        connect_edges(edge_file)
-        # TODO: make this better than a hardcode puhlease
-        assign_gender(feat_file, feat_names)
+    SAVED = True
+    GRAPH_PICKLE = "graph.pickle"
+    FEAT_PICKLE = "feat.pickle"
+    DATA_FILE = "data.pickle"
+
+    if SAVED:
+        G = pickle.load(open(GRAPH_PICKLE, "rb"))
+        feat_names = pickle.load(open(FEAT_PICKLE, 'rb'))
+        #data = pickle.load(open(DATA_FILE, 'rb'))
+    else:
+        edge_files, feat_files = collect_filenames(DATA_FOLDER)
+        feat_names = organize_features(FEATNAMES_FILE_FULL)
+        for edge_file, feat_file in zip(edge_files, feat_files):
+            connect_edges(edge_file)
+            # TODO: make this better than a hardcode puhlease
+            assign_gender(feat_file, feat_names)
+
+        pickle.dump(G, open(GRAPH_PICKLE, 'wb'))
+        pickle.dump(feat_names, open(FEAT_PICKLE, 'wb'))
+        #pickle.dump(data, open(DATA_FILE, 'wb'))
 
     data = get_centrality()
     regression = get_regression(data)
